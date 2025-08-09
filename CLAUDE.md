@@ -1,111 +1,98 @@
 # CLAUDE.md — Ocht Development Guide for Claude Code
 
 **Audience:** Claude Code (AI pair-programmer) working on the Ocht repository.
-
-**Goal:** Produce high-quality, composable Clojure code and documentation that fits Ocht's Polylith workspace, "pipelines-as-data" model (EDN), and functional-core/imperative-shell philosophy. Optimize for clarity, testability, and evolvability.
+**Goal:** Produce high-quality, composable Clojure code and documentation that fits Ocht's **Polylith workspace**, **Pipelines-as-Data** model (EDN), and **functional-core/imperative-shell** philosophy. Optimize for clarity, testability, and evolvability.
 
 ---
 
-## 1) Always Start Here (What to Read / What to Ask)
+## 1) Always Start Here
 
-### Required Reading Before Any Change:
+**Before touching code, read:**
 
-1. **`ARCHITECTURE.md`** – structure, principles, and workspace layout.
-2. **`README.md`** – mission, goals, quickstart.
-3. **This `CLAUDE.md`** – coding rules and implementation patterns.
-4. **`components/*/README.md`** – target brick(s) details.
-5. **`projects/development/dev/user.clj`** – REPL helpers.
+1. **`ARCHITECTURE.md`** — especially:
 
-### When Information is Missing, Ask Precise Questions:
+   * *Architecture Overview* — workspace layout, brick types.
+   * *Model–Interface–Environment* — core separation of responsibilities.
+   * *Three Phases* — **Pull → Transform → Push**.
+   * *Component Catalogue* — to find the brick you’ll work on.
+2. **`README.md`** — mission, goals, quickstart.
+3. **This `CLAUDE.md`** — coding rules & patterns.
+4. **`components/*/README.md`** — target brick details.
+5. **`projects/development/dev/user.clj`** — REPL helpers.
 
-Template:
+**If information is missing, ask**:
 
 > **Clarify:** *I'm about to change `<area>` to achieve `<outcome>`. I'm unsure about `<specific ambiguity>`. Options: `<A/B>`. I recommend `<choice>` because `<reason>`.*
 
-### When Proposing Code, Always State:
+---
 
-* **Intent:** what behavior changes.
-* **Surface area:** added/changed namespaces, public functions, protocols.
-* **Invariants & contracts:** pre/post conditions, effects.
-* **Tests:** what will be added or updated.
+## 2) Ocht Mental Model
+
+(See `ARCHITECTURE.md` — *Architecture Overview*, *Three Phases*, *Effects at Edges*.)
+
+### Workspace (Polylith Bricks)
+
+* **Components** = reusable libraries with public APIs in `interface` namespaces.
+* **Bases** = runnable entry points (`cli`, `worker`, `api`).
+* **Projects** = build configs bundling bases + components for an environment.
+
+### Core Process
+
+* **Three phases:** **Pull → Transform → Push**
+
+  * *Pull*/*Push* = side-effecting connector calls (edges only).
+  * *Transform* = pure functions/transducers, no IO.
+* **Pipelines as Data** — EDN is compiled into an internal model; all execution uses that model.
+* **Unified batch + stream** — same executor logic in CLI and worker.
+* **Effects at edges only** — connectors & bases perform IO; core is deterministic.
+* **Explicit failure** — structured error maps at boundaries; invariants inside core.
 
 ---
 
-## 2) Ocht Mental Model (Keep This In Your Head)
+## 3) Definition of Done
 
-### Polylith Architecture
-
-* **Components** = reusable libraries with public interfaces (`interface` ns).
-* **Bases** = runnable entry points (`cli`, `worker`, later `api`).
-* **Projects** = build configs assembling bases + components.
-
-### Core Principles
-
-* **Three phases per pipeline:** **Pull → Transform → Push**
-
-  * *Pull*/*Push* are side-effecting connector calls (edges only).
-  * *Transform* is **pure**, preferably via transducers for streaming.
-* **Pipelines as data:** EDN compiled to an internal model; everything consumes the compiled form.
-* **Unified batch + stream:** Same executor; no duplicate logic.
-* **Effects at edges only:** connectors/bases do IO; core stays deterministic.
-* **Explicit failure:** rich error maps at boundaries; clear invariants in the core.
-
-### The Octopus Principle
-
-Like an octopus with a central brain and independent arms:
-
-* **Local decision-making** at each step.
-* **Central coordination** for governance and traceability.
-* **Distributed intelligence** for faster adaptation.
-
----
-
-## 3) Definition of Done (What “Good” Looks Like)
-
-Each item includes **why** it matters:
+For each PR, confirm:
 
 **Code Quality**
 
-* [ ] Code compiles and `clj -X:test` (or `kaocha`) is green — ensures no regressions.
-* [ ] No side effects in lazy sequences — prevents hidden runtime failures in streaming.
-* [ ] No accidental realization outside scope — avoids resource leaks and memory blowups.
-* [ ] Pure functions are truly pure — keeps transformations deterministic and testable.
+* Compiles and passes `clj -X:test`.
+* No side effects in lazy sequences — see `ARCHITECTURE.md` (*Non-goals*).
+* No premature realization of sequences — preserves streaming safety.
+* Pure functions are truly pure — matches *pipeline.transform* guarantees.
 
-**Documentation**
+**Docs**
 
-* [ ] Public APIs documented in namespace docstrings — improves discoverability.
-* [ ] Component `README.md` updated with examples — shortens onboarding time.
-* [ ] Docstrings include preconditions — makes contracts clear to callers.
+* Public APIs documented in namespace docstrings.
+* Component `README.md` updated with purpose, API, examples.
+* Preconditions in docstrings — match invariants from `ARCHITECTURE.md` *Component Catalogue*.
 
 **Testing**
 
-* [ ] Property/contract tests for protocol implementations — guarantees behavior across connectors.
-* [ ] Unit tests for pure fns with edge cases — ensures correctness in core logic.
-* [ ] Integration tests updated if surface area changed — validates end-to-end flow.
+* Property tests or contract tests for protocols — align with `testkit` design in `ARCHITECTURE.md`.
+* Unit tests for pure fns.
+* Integration tests per base (CLI, worker, API).
 
 **Architecture Compliance**
 
-* [ ] Effects only at edges — preserves functional-core integrity.
-* [ ] Option maps for optional params — makes APIs self-documenting.
-* [ ] Public fns accept `{:keys [...] :as opts}` — supports future extensibility.
-* [ ] Narrow, consistent naming — avoids semantic drift.
+* Effects only at edges (connectors/bases).
+* Option maps for optional params.
+* Public fns accept `{:keys [...] :as opts}`.
+* Naming matches brick purpose — see *Component Catalogue* in `ARCHITECTURE.md`.
 
-**Operations**
+**Ops**
 
-* [ ] Logs/metrics/events via `components/observability` — keeps monitoring consistent.
-* [ ] No `println` — all logs structured for correlation.
-* [ ] Secrets via config indirection — avoids credential leaks.
-* [ ] Least-privilege credentials — reduces blast radius.
+* Logs/metrics/events via `components/observability`.
+* No `println`.
+* Secrets handled via config indirection.
+* Least-privilege credentials.
 
 ---
 
 ## 4) First PR Quickstart
 
-1. **Clone & setup:**
+1. **Discover workspace bricks:**
 
    ```bash
-   git clone https://github.com/yourorg/ocht
-   cd ocht
    clj -Tpoly info
    ```
 2. **Start REPL in dev project:**
@@ -113,60 +100,39 @@ Each item includes **why** it matters:
    ```bash
    clj -A:dev
    ```
-3. **Explore helpers in `dev/user.clj`** — e.g., `(reload-pipeline ...)`.
-4. **Write or modify code** in a *component*, *never* directly in a base unless it’s wiring.
-5. **Run tests:**
-
-   ```bash
-   clj -X:test
-   ```
-6. **Commit with message format:**
+3. Use helpers from `dev/user.clj` (e.g., `(reload-pipeline ...)`).
+4. Make changes **only** inside a component unless wiring a base.
+5. Run tests: `clj -X:test`.
+6. Commit:
 
    ```
    feat(component): add <thing> to achieve <user outcome>
    ```
-7. **Open PR** with intent, changes, risks, and test evidence.
+7. Open PR with intent, surface area, tests, risks, and evidence.
 
 ---
 
-## 5) Repository Conventions
+## 5) Code Style Rules
 
-* **Workspace:** matches Polylith layout (`bases/`, `components/`, `projects/`).
-* **Namespace:**
-
-  * Public API: `.../interface.clj`
-  * Impl: sibling `impl/` ns.
-  * Tests mirror source paths.
-* **Docs:** each component has a `README.md` with purpose, API, guarantees, examples.
-* **Config:** EDN overlays; secrets via env/keystore; profiles: `dev`, `test`, `prod`.
-
----
-
-## 6) Code Style Rules
+(See `ARCHITECTURE.md` — *Effects at Edges*, *Explicit Failure*, *Model–Interface–Environment*.)
 
 **Names** (per *Elements of Clojure*):
 
-* Natural yet narrow — `parse-config`, `deduplicate-rows`, never `process-data` without context.
-* Data: `m`, `xs`, `f` for generics; domain names for concrete shapes.
+* Narrow, descriptive — match domain (e.g., `deduplicate-rows`, not `process-data`).
+* Data: `m`, `xs`, `f` for generics; domain-specific for concrete shapes.
 * Maps of maps: `a->b`, nested `a->b->c`.
 
 **Functions**
 
-* Do *one* of: pull / transform / push.
-* Option maps for optional params; never Boolean flags.
+* Do *one* of: pull / transform / push — mirrors Three Phases.
+* Option maps for optional params.
 * Use narrow accessors (`get`, `keys`) over generic seq ops.
 
 **Side effects & Laziness**
 
-* Effects only at edges.
-* Call out side effects in `let`:
-
-  ```clojure
-  (let [data (fetch ...)
-        _ (log/info ...)]
-    ...)
-  ```
-* No IO in lazy seqs; realize sequences inside resource scope.
+* Effects only at edges — see connectors in `ARCHITECTURE.md`.
+* Explicit side effects in `let` bindings.
+* No IO in lazy seqs; realize within resource scope.
 
 **Interop & Macros**
 
@@ -175,7 +141,9 @@ Each item includes **why** it matters:
 
 ---
 
-## 7) Core Protocols & Contracts
+## 6) Core Protocols & Contracts
+
+(See `ARCHITECTURE.md` — *Contracts & Protocols*.)
 
 **Connector**
 
@@ -188,45 +156,42 @@ Each item includes **why** it matters:
 
 * `pull` — bounded/streamable; no hidden effects.
 * `push` — idempotent or documented otherwise.
-* `validate` — cheap & side-effect free.
+* `validate` — cheap, side-effect free.
 
 **Transform**
 
-* Pure, total; prefer transducers; no IO.
+* Pure, total within validated model ranges; prefer transducers.
 
 **Executor**
 
-* Takes compiled pipeline + opts; returns `{:result ...}` or `{:error ...}`.
+* Accepts compiled pipeline + opts; returns `{:result ...}` or `{:error ...}`.
 
 ---
 
-## 8) Testing Standards
+## 7) Testing Standards
 
-**Unit** — pure fns, edge cases, property tests.
-**Contract** — connectors pass shared suite (`testkit`).
-**Integration** — per base (CLI, worker, API).
-Tests fail if effects occur in lazy transforms.
+(See `ARCHITECTURE.md` — *Testing Strategy*.)
+
+* **Unit tests** — pure fns, edge cases, property tests.
+* **Contract tests** — connectors pass shared suite from `testkit`.
+* **Integration tests** — per base (CLI, worker, API).
+* Fail if effects inside lazy transforms.
 
 ---
 
-## 9) Error Handling & Observability
+## 8) Error Handling & Observability
 
-**At Boundaries:**
+(See `ARCHITECTURE.md` — *Error Handling & Invariants*, *Observability & Operations*.)
+
+**Error maps at boundaries:**
 
 ```clojure
 {:error :file-too-large
  :details {:size-mb 1024 :limit-mb 512}
- :suggestions ["Increase limit" "Use streaming"]
  :correlation-id cid}
 ```
 
-**Core:**
-
-```clojure
-(assert (valid? pipeline) "Invalid pipeline")
-```
-
-**Logging & Metrics:**
+**Logs & metrics via observability:**
 
 ```clojure
 (log/info {:event :pipeline-start
@@ -235,52 +200,28 @@ Tests fail if effects occur in lazy transforms.
 (metrics/timing :executor/total-ms elapsed)
 ```
 
-* Lifecycle events: `started`, `step-begin/end`, `completed`, `failed`.
-* Redact sensitive fields at edges.
-
 ---
 
-## 10) Security & Privacy
+## 9) Security & Privacy
+
+(See `ARCHITECTURE.md` — *Security & Config*.)
 
 * No secrets in repo; env/keystore only.
-* Connectors use least-privilege credentials.
+* Least-privilege credentials for connectors.
 * Redact sensitive data before logging.
 
 ---
 
-## 11) Common Tasks
+## 10) Common Tasks
 
 **A) Add Stateless Transform**
 
-```clojure
-(defn deduplicate-rows
-  "Remove duplicate rows based on key-fn"
-  [key-fn]
-  (comp (map (juxt key-fn identity))
-        dedupe
-        (map second)))
-
-(register-transform
-  :deduplicate
-  {:fn deduplicate-rows
-   :doc "Remove duplicate rows based on a key function"
-   :examples [{:key-fn :id
-               :input [{:id 1} {:id 1} {:id 2}]
-               :expected [{:id 1} {:id 2}]}]})
-```
+1. Create pure fn + transducer variant in `components/pipeline/transform/...`.
+2. Register in `registry.transform`.
+3. Add property tests + update `README.md`.
 
 **B) Add Connector**
 
-```clojure
-(ns connectors.csv
-  (:require [clojure.data.csv :as csv]
-            [ocht.connector.protocol :as proto]))
-
-(defrecord CsvConnector []
-  proto/Connector
-  (pull [_ cfg _] {:data (read-csv (:path cfg))})
-  (push [_ cfg data _] (write-csv (:path cfg) data))
-  (validate [_ cfg] {:ok? (file-exists? (:path cfg))}))
-```
-
-Run connector contract tests from `testkit`.
+1. Implement Connector protocol in `components/connectors/...`.
+2. Ensure idempotent push semantics.
+3. Pass connector contract tests from `testkit`.
