@@ -1,3 +1,7 @@
+> **Navigation:**
+> - [Start Here — CONTRIBUTING.md](CONTRIBUTING.md) for onboarding and repo workflow
+> - [ARCHITECTURE.md](ARCHITECTURE.md) for Ocht’s design principles and structure
+
 # CLAUDE.md — Ocht Development Guide for Claude Code
 
 **Audience:** Claude Code (AI pair-programmer) working on the Ocht repository.
