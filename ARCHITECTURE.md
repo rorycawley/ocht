@@ -1,227 +1,125 @@
-# CLAUDE.md — Ocht Development Guide for Claude Code
-
-**Audience:** Claude Code (AI pair-programmer) working on the Ocht repository.
-**Goal:** Produce high-quality, composable Clojure code and documentation that fits Ocht's **Polylith workspace**, **Pipelines-as-Data** model (EDN), and **functional-core/imperative-shell** philosophy. Optimize for clarity, testability, and evolvability.
+# ARCHITECTURE.md
 
 ---
 
-## 1) Always Start Here
+## Purpose
 
-**Before touching code, read:**
+This document explains **how Ocht is structured using the Polylith architecture** and how that structure delivers the goals set out in `README.md` and `CLAUDE.md`.
 
-1. **`ARCHITECTURE.md`** — especially:
-
-   * *Architecture Overview* — workspace layout, brick types.
-   * *Model–Interface–Environment* — core separation of responsibilities.
-   * *Three Phases* — **Pull → Transform → Push**.
-   * *Component Catalogue* — to find the brick you’ll work on.
-2. **`README.md`** — mission, goals, quickstart.
-3. **This `CLAUDE.md`** — coding rules & patterns.
-4. **`components/*/README.md`** — target brick details.
-5. **`projects/development/dev/user.clj`** — REPL helpers.
-
-**If information is missing, ask**:
-
-> **Clarify:** *I'm about to change `<area>` to achieve `<outcome>`. I'm unsure about `<specific ambiguity>`. Options: `<A/B>`. I recommend `<choice>` because `<reason>`.*
+> **Contributor Note:** When implementing changes, see **CLAUDE.md → 2) Ocht Mental Model** for day-to-day coding rules that enforce these principles.
 
 ---
 
-## 2) Ocht Mental Model
+## Executive Summary
 
-(See `ARCHITECTURE.md` — *Architecture Overview*, *Three Phases*, *Effects at Edges*.)
+Polylith fits Ocht perfectly: stable, scalable, and allows plugin-style growth without disturbing the core.
 
-### Workspace (Polylith Bricks)
-
-* **Components** = reusable libraries with public APIs in `interface` namespaces.
-* **Bases** = runnable entry points (`cli`, `worker`, `api`).
-* **Projects** = build configs bundling bases + components for an environment.
-
-### Core Process
-
-* **Three phases:** **Pull → Transform → Push**
-
-  * *Pull*/*Push* = side-effecting connector calls (edges only).
-  * *Transform* = pure functions/transducers, no IO.
-* **Pipelines as Data** — EDN is compiled into an internal model; all execution uses that model.
-* **Unified batch + stream** — same executor logic in CLI and worker.
-* **Effects at edges only** — connectors & bases perform IO; core is deterministic.
-* **Explicit failure** — structured error maps at boundaries; invariants inside core.
+> **Contributor Note:** See **CLAUDE.md → 5) Code Style Rules** for how to keep new bricks aligned with these architectural goals.
 
 ---
 
-## 3) Definition of Done
+## Architecture Overview
 
-For each PR, confirm:
+**Polylith 101**: Components, Bases, Projects.
 
-**Code Quality**
-
-* Compiles and passes `clj -X:test`.
-* No side effects in lazy sequences — see `ARCHITECTURE.md` (*Non-goals*).
-* No premature realization of sequences — preserves streaming safety.
-* Pure functions are truly pure — matches *pipeline.transform* guarantees.
-
-**Docs**
-
-* Public APIs documented in namespace docstrings.
-* Component `README.md` updated with purpose, API, examples.
-* Preconditions in docstrings — match invariants from `ARCHITECTURE.md` *Component Catalogue*.
-
-**Testing**
-
-* Property tests or contract tests for protocols — align with `testkit` design in `ARCHITECTURE.md`.
-* Unit tests for pure fns.
-* Integration tests per base (CLI, worker, API).
-
-**Architecture Compliance**
-
-* Effects only at edges (connectors/bases).
-* Option maps for optional params.
-* Public fns accept `{:keys [...] :as opts}`.
-* Naming matches brick purpose — see *Component Catalogue* in `ARCHITECTURE.md`.
-
-**Ops**
-
-* Logs/metrics/events via `components/observability`.
-* No `println`.
-* Secrets handled via config indirection.
-* Least-privilege credentials.
+> **Contributor Note:** See **CLAUDE.md → 2) Ocht Mental Model** for the mental model to keep in mind while coding.
 
 ---
 
-## 4) First PR Quickstart
+## Workspace Layout
 
-1. **Discover workspace bricks:**
+Polylith layout for Ocht:
+`bases/`, `components/`, `projects/`.
 
-   ```bash
-   clj -Tpoly info
-   ```
-2. **Start REPL in dev project:**
-
-   ```bash
-   clj -A:dev
-   ```
-3. Use helpers from `dev/user.clj` (e.g., `(reload-pipeline ...)`).
-4. Make changes **only** inside a component unless wiring a base.
-5. Run tests: `clj -X:test`.
-6. Commit:
-
-   ```
-   feat(component): add <thing> to achieve <user outcome>
-   ```
-7. Open PR with intent, surface area, tests, risks, and evidence.
+> **Contributor Note:** See **CLAUDE.md → 5) Repository Conventions** for naming, namespace layout, and documentation requirements.
 
 ---
 
-## 5) Code Style Rules
+## Core Architectural Patterns
 
-(See `ARCHITECTURE.md` — *Effects at Edges*, *Explicit Failure*, *Model–Interface–Environment*.)
+### Model–Interface–Environment
 
-**Names** (per *Elements of Clojure*):
+Defines **Model** (data types/invariants), **Interface** (protocols), **Environment** (effects).
 
-* Narrow, descriptive — match domain (e.g., `deduplicate-rows`, not `process-data`).
-* Data: `m`, `xs`, `f` for generics; domain-specific for concrete shapes.
-* Maps of maps: `a->b`, nested `a->b->c`.
+> **Contributor Note:** See **CLAUDE.md → 6) Core Protocols & Contracts** for connector/transform/executor contracts you must follow.
 
-**Functions**
+### Three Phases
 
-* Do *one* of: pull / transform / push — mirrors Three Phases.
-* Option maps for optional params.
-* Use narrow accessors (`get`, `keys`) over generic seq ops.
+**Pull → Transform → Push** separation.
 
-**Side effects & Laziness**
-
-* Effects only at edges — see connectors in `ARCHITECTURE.md`.
-* Explicit side effects in `let` bindings.
-* No IO in lazy seqs; realize within resource scope.
-
-**Interop & Macros**
-
-* Java interop explicit; hide behind adapters if reused.
-* Macros only for syntax sugar; document expansion.
+> **Contributor Note:** See **CLAUDE.md → 5) Code Style Rules** and **10) Common Tasks** for patterns that respect this separation.
 
 ---
 
-## 6) Core Protocols & Contracts
+## Component Catalogue
 
-(See `ARCHITECTURE.md` — *Contracts & Protocols*.)
+List of core components (`pipeline.model`, `pipeline.transform`, etc.).
 
-**Connector**
-
-```clojure
-(defprotocol Connector
-  (pull [this config options])
-  (push [this config data options])
-  (validate [this config]))
-```
-
-* `pull` — bounded/streamable; no hidden effects.
-* `push` — idempotent or documented otherwise.
-* `validate` — cheap, side-effect free.
-
-**Transform**
-
-* Pure, total within validated model ranges; prefer transducers.
-
-**Executor**
-
-* Accepts compiled pipeline + opts; returns `{:result ...}` or `{:error ...}`.
+> **Contributor Note:** Before modifying a component here, check **CLAUDE.md → 3) Definition of Done** and **7) Testing Standards** for required tests and docs.
 
 ---
 
-## 7) Testing Standards
+## Bases & Projects
 
-(See `ARCHITECTURE.md` — *Testing Strategy*.)
+Bases: `cli`, `worker`, `api`.
+Projects: `development`, deployables.
 
-* **Unit tests** — pure fns, edge cases, property tests.
-* **Contract tests** — connectors pass shared suite from `testkit`.
-* **Integration tests** — per base (CLI, worker, API).
-* Fail if effects inside lazy transforms.
+> **Contributor Note:** See **CLAUDE.md → 4) First PR Quickstart** for how to choose the right brick and test it in the dev REPL.
 
 ---
 
-## 8) Error Handling & Observability
+## Contracts & Protocols
 
-(See `ARCHITECTURE.md` — *Error Handling & Invariants*, *Observability & Operations*.)
+Connector, Transform, Executor interfaces.
 
-**Error maps at boundaries:**
-
-```clojure
-{:error :file-too-large
- :details {:size-mb 1024 :limit-mb 512}
- :correlation-id cid}
-```
-
-**Logs & metrics via observability:**
-
-```clojure
-(log/info {:event :pipeline-start
-           :pipeline-id pid
-           :correlation-id cid})
-(metrics/timing :executor/total-ms elapsed)
-```
+> **Contributor Note:** See **CLAUDE.md → 6) Core Protocols & Contracts** for full signatures, return shapes, and idempotency rules.
 
 ---
 
-## 9) Security & Privacy
+## Error Handling & Invariants
 
-(See `ARCHITECTURE.md` — *Security & Config*.)
+Structured error maps, assertions, invariants.
 
-* No secrets in repo; env/keystore only.
-* Least-privilege credentials for connectors.
-* Redact sensitive data before logging.
+> **Contributor Note:** See **CLAUDE.md → 8) Error Handling & Observability** for log formats, metrics, and redaction rules.
 
 ---
 
-## 10) Common Tasks
+## Testing Strategy
 
-**A) Add Stateless Transform**
+Unit, property, contract, integration.
 
-1. Create pure fn + transducer variant in `components/pipeline/transform/...`.
-2. Register in `registry.transform`.
-3. Add property tests + update `README.md`.
+> **Contributor Note:** See **CLAUDE.md → 7) Testing Standards** for the exact structure of each test type and failure conditions.
 
-**B) Add Connector**
+---
 
-1. Implement Connector protocol in `components/connectors/...`.
-2. Ensure idempotent push semantics.
-3. Pass connector contract tests from `testkit`.
+## Performance & Concurrency
+
+Chunking, back-pressure, parallelism.
+
+> **Contributor Note:** See **CLAUDE.md → 3) Definition of Done (Why)** for why streaming safety and laziness rules matter.
+
+---
+
+## Observability & Operations
+
+Metrics, structured logs, lifecycle events.
+
+> **Contributor Note:** See **CLAUDE.md → 8) Error Handling & Observability** for the full logging/metrics code pattern.
+
+---
+
+## Security & Config
+
+Secrets, least privilege, mTLS.
+
+> **Contributor Note:** See **CLAUDE.md → 9) Security & Privacy** for implementation guidance.
+
+---
+
+## Evolution Path
+
+How to add new connectors, transforms, and bases.
+
+> **Contributor Note:** See **CLAUDE.md → 10) Common Tasks** for step-by-step implementation instructions.
+
+Do you want me to make that next?
