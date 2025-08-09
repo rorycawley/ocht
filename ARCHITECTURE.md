@@ -1,280 +1,227 @@
-# ARCHITECTURE
+# CLAUDE.md — Ocht Development Guide for Claude Code
 
-## Purpose
-
-This document explains **how Ocht is structured using the Polylith architecture** and how that structure delivers the goals set out in `README.md` and `CLAUDE.md`:
-
-* **Distributed intelligence** (autonomous steps)
-* **Pipelines as data** (EDN-first)
-* **REPL‑first development** (interactive, testable components)
-* **Unified processing** (batch + streaming share logic)
-* **Effects only at the edges** (pure functional core)
-* **Explicit failure** (clear invariants and boundaries)
+**Audience:** Claude Code (AI pair-programmer) working on the Ocht repository.
+**Goal:** Produce high-quality, composable Clojure code and documentation that fits Ocht's **Polylith workspace**, **Pipelines-as-Data** model (EDN), and **functional-core/imperative-shell** philosophy. Optimize for clarity, testability, and evolvability.
 
 ---
 
-## Executive Summary
+## 1) Always Start Here
 
-**Polylith is an outstanding fit for Ocht.** It gives us a stable, scalable way to grow a plugin-style data platform where new connectors, transforms, and bases can be added without disturbing the core. The workspace is subdivided into **reusable components**, **runnable bases**, and **buildable projects**, which directly supports our Model–Interface–Environment pattern and Three‑Phases (Pull → Transform → Push) process model.
+**Before touching code, read:**
 
----
+1. **`ARCHITECTURE.md`** — especially:
 
-## Architecture Overview
+   * *Architecture Overview* — workspace layout, brick types.
+   * *Model–Interface–Environment* — core separation of responsibilities.
+   * *Three Phases* — **Pull → Transform → Push**.
+   * *Component Catalogue* — to find the brick you’ll work on.
+2. **`README.md`** — mission, goals, quickstart.
+3. **This `CLAUDE.md`** — coding rules & patterns.
+4. **`components/*/README.md`** — target brick details.
+5. **`projects/development/dev/user.clj`** — REPL helpers.
 
-### Polylith 101 (in Ocht terms)
+**If information is missing, ask**:
 
-* **Component** = a reusable library with a clear public API. Examples: `pipeline.model`, `pipeline.executor`, `connector.csv`, `transform.registry`.
-* **Base** = an entry point that wires components to run an application. Examples: `cli`, `worker`, `api`.
-* **Project** = build configuration that bundles a base + selected components for a particular environment. Examples: `development` (REPL), `ocht-cli` (uberjar), `ocht-worker`.
-
-### How this maps to our principles
-
-| Goal                         | Polylith mechanism                                                                           |
-| ---------------------------- | -------------------------------------------------------------------------------------------- |
-| **Distributed intelligence** | Each “intelligent arm” is a component with a narrow API; bases orchestrate many arms.        |
-| **Pipelines as data (EDN)**  | `pipeline.model` parses/validates EDN; other components consume the same in-memory model.    |
-| **REPL-first**               | `projects/development` exposes all components for interactive exploration and fast feedback. |
-| **Unified batch/stream**     | One `pipeline.executor` used by `cli` (batch) and `worker` (stream).                         |
-| **Effects at edges**         | IO lives in connector components and bases; pure core remains deterministic and testable.    |
-| **Explicit failure**         | Preconditions/postconditions at component boundaries; error mapping centralized in bases.    |
+> **Clarify:** *I'm about to change `<area>` to achieve `<outcome>`. I'm unsure about `<specific ambiguity>`. Options: `<A/B>`. I recommend `<choice>` because `<reason>`.*
 
 ---
 
-## Workspace Layout (proposed)
+## 2) Ocht Mental Model
 
-```
-ocht/
-├─ bases/
-│  ├─ cli/            # command line entry point
-│  ├─ worker/         # streaming/queue consumer
-│  └─ api/            # REST/HTTP API (future)
-│
-├─ components/
-│  ├─ pipeline/
-│  │  ├─ model/       # EDN schema, validation, compilation, invariants
-│  │  ├─ transform/   # pure transforms + transducers
-│  │  └─ executor/    # Pull→Transform→Push orchestration via protocols
-│  │
-│  ├─ connectors/
-│  │  ├─ csv/
-│  │  ├─ jdbc/
-│  │  ├─ kafka/       # future
-│  │  └─ s3/          # future
-│  │
-│  ├─ registry/
-│  │  ├─ transform/   # transform registry + discovery
-│  │  └─ connector/   # connector registry + capability queries
-│  │
-│  ├─ ml/runtime/     # ML inference abstraction (optional)
-│  ├─ observability/  # metrics, logging, events
-│  ├─ config/         # EDN config loading/merging, secrets API
-│  └─ testkit/        # generators, golden data, contract tests
-│
-├─ projects/
-│  ├─ development/    # unified REPL (all components)
-│  ├─ ocht-cli/       # deployable CLI artifact
-│  └─ ocht-worker/    # deployable worker artifact
-│
-└─ deps.edn           # workspace deps
-```
+(See `ARCHITECTURE.md` — *Architecture Overview*, *Three Phases*, *Effects at Edges*.)
+
+### Workspace (Polylith Bricks)
+
+* **Components** = reusable libraries with public APIs in `interface` namespaces.
+* **Bases** = runnable entry points (`cli`, `worker`, `api`).
+* **Projects** = build configs bundling bases + components for an environment.
+
+### Core Process
+
+* **Three phases:** **Pull → Transform → Push**
+
+  * *Pull*/*Push* = side-effecting connector calls (edges only).
+  * *Transform* = pure functions/transducers, no IO.
+* **Pipelines as Data** — EDN is compiled into an internal model; all execution uses that model.
+* **Unified batch + stream** — same executor logic in CLI and worker.
+* **Effects at edges only** — connectors & bases perform IO; core is deterministic.
+* **Explicit failure** — structured error maps at boundaries; invariants inside core.
 
 ---
 
-## Core Architectural Patterns
+## 3) Definition of Done
 
-### Model–Interface–Environment
+For each PR, confirm:
 
-* **Model**: Domain data types and invariants are defined in `components/pipeline/model` (e.g., `Pipeline`, `Step`, validation spec/schema, compiler).
-* **Interface**: Narrow protocols for interacting with the model and environment: `Connector` (pull/push/validate), `Transform` (apply), `Executor` (execute). Public functions are exposed from `interface` namespaces per component.
-* **Environment**: Bases + connector components implement side effects (files, JDBC, Kafka, S3, HTTP). They are wired by projects into deployables.
+**Code Quality**
 
-### Three Phases (per process)
+* Compiles and passes `clj -X:test`.
+* No side effects in lazy sequences — see `ARCHITECTURE.md` (*Non-goals*).
+* No premature realization of sequences — preserves streaming safety.
+* Pure functions are truly pure — matches *pipeline.transform* guarantees.
 
-1. **Pull**: connectors acquire and validate input; executor materializes bounded chunks; options map controls limits/timeouts.
-2. **Transform**: pure data-in/data-out transformations using transducers where possible; laziness contains **no** side effects.
-3. **Push**: connectors persist, publish, or emit results; idempotency is enforced in connector implementations.
+**Docs**
 
-This separation keeps the **functional core** pure and moves all effects to the **edges**.
+* Public APIs documented in namespace docstrings.
+* Component `README.md` updated with purpose, API, examples.
+* Preconditions in docstrings — match invariants from `ARCHITECTURE.md` *Component Catalogue*.
 
----
+**Testing**
 
-## Component Catalogue (initial set)
+* Property tests or contract tests for protocols — align with `testkit` design in `ARCHITECTURE.md`.
+* Unit tests for pure fns.
+* Integration tests per base (CLI, worker, API).
 
-### `pipeline.model`
+**Architecture Compliance**
 
-* **Responsibilities**: parse/validate EDN pipelines; enforce invariants; compile to an optimized internal form.
-* **Guarantees**: if a pipeline compiles, downstream components can assume shape/semantics.
-* **README alignment**: *Pipelines as data*; *Fail explicitly*; *Document assumptions*.
+* Effects only at edges (connectors/bases).
+* Option maps for optional params.
+* Public fns accept `{:keys [...] :as opts}`.
+* Naming matches brick purpose — see *Component Catalogue* in `ARCHITECTURE.md`.
 
-### `pipeline.transform`
+**Ops**
 
-* **Responsibilities**: canonical transform functions (filter/map/sort/aggregate), always pure; transducer variants for streaming.
-* **Guarantees**: no IO; total functions within validated input ranges.
-* **README alignment**: *Unified processing*; *Effects at edges only*.
-
-### `registry.transform`
-
-* **Responsibilities**: central registry for transform discovery and capability metadata; exposes `get-transform` and `list-transforms`.
-* **Guarantees**: consistent lookup; helpful error data on missing keys.
-
-### `pipeline.executor`
-
-* **Responsibilities**: orchestrate Pull→Transform→Push; concurrency/back‑pressure; resource management; metrics hooks.
-* **Guarantees**: bounded memory (chunking); timeouts; cancellation; structured error mapping.
-* **README alignment**: *Correctness first → Clarity → Performance*; *Explicit failure*.
-
-### `connectors.*`
-
-* **Responsibilities**: implement `Connector` protocol for specific systems (CSV, JDBC, Kafka, S3...).
-* **Guarantees**: idempotent `push` where possible; `validate` reports capabilities/limits; no leakage of vendor details upstream.
-* **README alignment**: *Effects at edges only*; *Plugin architecture*.
-
-### `ml.runtime` (optional, later)
-
-* Abstracts inference endpoints (e.g., ONNX Runtime, TorchServe). Keeps ML effects at edges; deterministic contracts in the core.
-
-### `observability`
-
-* Common logging/metrics/events interfaces; provides noop + prod implementations; used by executor and connectors.
-
-### `config`
-
-* Deterministic config loading/merging; secrets indirection; supports profiles (dev/test/prod) without code changes.
-
-### `testkit`
-
-* Property generators for pipelines and data shapes; contract tests for connectors; golden files for reproducible runs.
+* Logs/metrics/events via `components/observability`.
+* No `println`.
+* Secrets handled via config indirection.
+* Least-privilege credentials.
 
 ---
 
-## Bases & Projects
+## 4) First PR Quickstart
 
-### Bases
+1. **Discover workspace bricks:**
 
-* **`cli`**: reads a pipeline EDN and input path(s); executes once; prints/exports results and metadata.
-* **`worker`**: subscribes to a stream/queue; executes pipelines continuously with back‑pressure.
-* **`api`** (future): exposes HTTP endpoints for submission/inspection of pipelines and runs.
+   ```bash
+   clj -Tpoly info
+   ```
+2. **Start REPL in dev project:**
 
-### Projects
+   ```bash
+   clj -A:dev
+   ```
+3. Use helpers from `dev/user.clj` (e.g., `(reload-pipeline ...)`).
+4. Make changes **only** inside a component unless wiring a base.
+5. Run tests: `clj -X:test`.
+6. Commit:
 
-* **`development`**: unified REPL—including all components/bases, `dev/user.clj` helpers (e.g., `(test-pipeline ...)`, `(reload-pipeline ...)`).
-* **`ocht-cli` / `ocht-worker`**: minimal dependency graphs per deployable for tiny images and fast cold starts.
+   ```
+   feat(component): add <thing> to achieve <user outcome>
+   ```
+7. Open PR with intent, surface area, tests, risks, and evidence.
 
 ---
 
-## Contracts & Protocols
+## 5) Code Style Rules
 
-### Connector Protocol (sketch)
+(See `ARCHITECTURE.md` — *Effects at Edges*, *Explicit Failure*, *Model–Interface–Environment*.)
+
+**Names** (per *Elements of Clojure*):
+
+* Narrow, descriptive — match domain (e.g., `deduplicate-rows`, not `process-data`).
+* Data: `m`, `xs`, `f` for generics; domain-specific for concrete shapes.
+* Maps of maps: `a->b`, nested `a->b->c`.
+
+**Functions**
+
+* Do *one* of: pull / transform / push — mirrors Three Phases.
+* Option maps for optional params.
+* Use narrow accessors (`get`, `keys`) over generic seq ops.
+
+**Side effects & Laziness**
+
+* Effects only at edges — see connectors in `ARCHITECTURE.md`.
+* Explicit side effects in `let` bindings.
+* No IO in lazy seqs; realize within resource scope.
+
+**Interop & Macros**
+
+* Java interop explicit; hide behind adapters if reused.
+* Macros only for syntax sugar; document expansion.
+
+---
+
+## 6) Core Protocols & Contracts
+
+(See `ARCHITECTURE.md` — *Contracts & Protocols*.)
+
+**Connector**
 
 ```clojure
-(pull config options)   ; => {:data seq|stream, :metadata {...}}
-(push config data options) ; => {:success true, :rows-written n, :metadata {...}}
-(validate config)       ; => {:ok? boolean, :capabilities #{...}, :errors [...]}
+(defprotocol Connector
+  (pull [this config options])
+  (push [this config data options])
+  (validate [this config]))
 ```
 
-**Rules**
+* `pull` — bounded/streamable; no hidden effects.
+* `push` — idempotent or documented otherwise.
+* `validate` — cheap, side-effect free.
 
-* `pull` returns bounded or streamable data; never performs hidden side effects.
-* `push` is idempotent when target supports it (e.g., UPSERT semantics); otherwise documents idempotency keys.
-* `validate` is cheap and side‑effect free.
+**Transform**
 
-### Transform API
+* Pure, total within validated model ranges; prefer transducers.
 
-* Functions are pure and total within compiled model constraints.
-* Composition via transducers when dealing with large/streaming data.
+**Executor**
 
-### Executor API
-
-* Accepts a compiled pipeline + runtime options; returns `{:result x :metadata m}` or `{:error k :details d}` at boundaries.
+* Accepts compiled pipeline + opts; returns `{:result ...}` or `{:error ...}`.
 
 ---
 
-## Error Handling & Invariants
+## 7) Testing Standards
 
-* **At boundaries** (bases/executor): try/catch with structured error maps (e.g., `:file-too-large`, `:out-of-memory`, `:invalid-pipeline`).
-* **In the core** (model/transform): let failures surface; rely on pre-validated shapes; use assertions and specs with helpful messages.
-* **Assumptions vs Invariants**: assumptions are documented in docstrings; invariants enforced via pre/post or spec.
+(See `ARCHITECTURE.md` — *Testing Strategy*.)
 
----
-
-## Testing Strategy
-
-* **Unit & Property tests** per component (`components/*/test`).
-* **Contract tests**: shared suites in `testkit` that every connector must pass (read/write/validate behaviors, idempotency, limits).
-* **Integration tests** per project (e.g., CLI run against fixture data; worker against a local queue).
-* **Non‑goals**: no effects hidden inside lazy sequences; tests fail if IO is observed mid‑transform.
+* **Unit tests** — pure fns, edge cases, property tests.
+* **Contract tests** — connectors pass shared suite from `testkit`.
+* **Integration tests** — per base (CLI, worker, API).
+* Fail if effects inside lazy transforms.
 
 ---
 
-## Performance & Concurrency
+## 8) Error Handling & Observability
 
-* **Chunked processing** for large files; **transducers** to minimize allocations.
-* **Back‑pressure** in `worker` base; bounded queues.
-* **Parallelism**: `pmap`/`core.async` (or an execution pool) for CPU‑bound transforms; never for IO unless explicitly safe.
-* **Optimize last**: correctness → clarity → measured optimization.
+(See `ARCHITECTURE.md` — *Error Handling & Invariants*, *Observability & Operations*.)
 
----
+**Error maps at boundaries:**
 
-## Observability & Operations
+```clojure
+{:error :file-too-large
+ :details {:size-mb 1024 :limit-mb 512}
+ :correlation-id cid}
+```
 
-* **Metrics**: executor stages timing, rows processed, memory watermark, back‑pressure signals.
-* **Logs**: structured, correlation IDs per run; redaction rules applied at the edge.
-* **Events**: lifecycle events (started, step-begin/end, completed, failed) emitted from executor hooks.
+**Logs & metrics via observability:**
 
----
-
-## Security & Config
-
-* **Config**: environment-agnostic EDN with overlays; secrets via indirection (env/keystore); no secrets in source.
-* **Connectors**: least‑privilege credentials; optional mTLS/ACLs per target; audit hooks via `observability`.
-
----
-
-## Evolution Path
-
-1. **MVP (Q4 2025)**: `cli` base; `pipeline.model`, `pipeline.transform`, `pipeline.executor`; `connector.csv`; console output.
-2. **Next**: add `connector.jdbc`; introduce `worker` base for streaming; basic observability.
-3. **Later**: ML transforms via `ml.runtime`; `api` base; more connectors (Kafka/S3); scheduler and monitoring components.
-
-Polylith makes each addition a **new brick**—existing bricks remain untouched.
+```clojure
+(log/info {:event :pipeline-start
+           :pipeline-id pid
+           :correlation-id cid})
+(metrics/timing :executor/total-ms elapsed)
+```
 
 ---
 
-## Trade‑offs & Risks
+## 9) Security & Privacy
 
-* **Learning curve**: components/bases/projects terminology; mitigated by examples and templates.
-* **Granularity**: too fine → overhead; too coarse → coupling. Start coarse (`connectors`, `transforms`), split when needed.
-* **Cross‑language edges**: keep them in connectors/bases to avoid leaking details into the core.
+(See `ARCHITECTURE.md` — *Security & Config*.)
 
----
-
-## Getting Started (practical steps)
-
-1. Create workspace: `clj -Tpoly create :name ocht :top-ns ocht`.
-2. Add initial components: `pipeline.model`, `pipeline.transform`, `pipeline.executor`, `connectors.csv`, `registry.transform`.
-3. Create bases: `cli`; later `worker`.
-4. Create projects: `development`, `ocht-cli`.
-5. Wire `dev/user.clj` helpers for REPL: `(test-pipeline ...)`, `(reload-pipeline ...)`.
-6. Add `testkit` with property and contract tests; make connector tests mandatory.
+* No secrets in repo; env/keystore only.
+* Least-privilege credentials for connectors.
+* Redact sensitive data before logging.
 
 ---
 
-## Glossary (Ocht)
+## 10) Common Tasks
 
-* **Pipeline**: EDN description of steps; compiled to an internal plan.
-* **Step**: a typed unit of work (ingest/transform/ml-inference/output).
-* **Connector**: effectful adapter to an external system implementing the `Connector` protocol.
-* **Transform**: pure function/transducer transforming in‑memory data.
-* **Base**: runnable application that composes components.
-* **Project**: build definition for a base + selected components.
+**A) Add Stateless Transform**
 
----
+1. Create pure fn + transducer variant in `components/pipeline/transform/...`.
+2. Register in `registry.transform`.
+3. Add property tests + update `README.md`.
 
-## Appendix: Alignment Checklist
+**B) Add Connector**
 
-* REPL‑first? **Yes** → `projects/development` + `dev/user.clj` utilities.
-* Effects at edges? **Yes** → connectors & bases only.
-* Pipelines as data? **Yes** → `pipeline.model` compiles EDN; everything consumes the compiled form.
-* Unified batch/stream? **Yes** → same executor in `cli` and `worker`.
-* Explicit failure? **Yes** → structured error maps at boundaries; invariants in the core.
-* Evolvable plugins? **Yes** → new connectors/transforms as components, no core edits needed.
+1. Implement Connector protocol in `components/connectors/...`.
+2. Ensure idempotent push semantics.
+3. Pass connector contract tests from `testkit`.
