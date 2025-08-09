@@ -1,3 +1,7 @@
+> **Navigation:**
+> - [Start Here — CONTRIBUTING.md](CONTRIBUTING.md) for onboarding and repo workflow
+> - [CLAUDE.md](CLAUDE.md) for coding rules, style, and implementation patterns
+
 # ARCHITECTURE.md
 
 ---
