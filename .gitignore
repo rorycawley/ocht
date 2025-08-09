@@ -1,3 +1,4 @@
+# Clojure
 pom.xml
 pom.xml.asc
 *.jar
@@ -12,3 +13,26 @@ pom.xml.asc
 .lein-failures
 .nrepl-port
 .cpcache/
+
+# IDEs
+.idea/
+*.iml
+.vscode/
+.calva/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Polylith
+.polylith/
+
+# Build artifacts
+/projects/*/target/
+/projects/*/classes/
+/projects/*/pom.xml
+
+# Development
+/development/target/
+/development/classes/
+/development/pom.xml

@@ -1,0 +1,6 @@
+{:id "simple-demo"
+ :pull {:connector :csv 
+        :config {:file "/Users/rorycawley/Development/ocht/demo-data.csv"}}
+ :transform []
+ :push {:connector :console
+        :config {:format :table}}}

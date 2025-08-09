@@ -1,0 +1,12 @@
+{:top-namespace "ocht"
+
+ :interface-ns "interface"
+
+ :default-profile-name "default"
+
+ :compact-views #{}
+
+ :tag-patterns {"stable" "stable-*"
+                "release" "v[0-9]*"}
+
+ :user-config-filename "~/.polylith/config.edn"}

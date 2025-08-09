@@ -1,0 +1,13 @@
+{:id "sales-analysis-demo"
+ :pull {:connector :csv 
+        :config {:file "demo-data.csv"}}
+ :transform [{:fn :filter 
+              :args {:predicate #(= "sale" (:type %))}}
+             {:fn :filter
+              :args {:predicate #(> (Double/parseDouble (:amount %)) 1000.0)}}
+             {:fn :map
+              :args {:f #(assoc % :category "high-value-sale")}}
+             {:fn :take
+              :args {:n 10}}]
+ :push {:connector :console
+        :config {:format :table}}}

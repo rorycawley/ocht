@@ -1,0 +1,5 @@
+id,amount,type,description
+1,150.50,sale,Widget A
+2,50.00,refund,Return Widget A
+3,200.75,sale,Widget B
+4,75.25,sale,Widget C
