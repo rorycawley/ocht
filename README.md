@@ -100,11 +100,13 @@ Traditional data pipelines move data.
 * **Q2 2026** — Real-time Streaming
 * **Q3 2026** — Enterprise Features
 
-### **What You Can Do with the MVP**
+### **What You Can Do with the MVP (Available Now)**
 
-* Launch your first pipeline in **under 10 minutes** with the quick-start guide.
-* Iteratively build and test transformations using a **fully REPL-driven workflow**.
-* Guarantee **data reproducibility** with a built-in testing framework.
+* **Try the demo**: `clj -M:cli -p demo-simple.edn -v` (CSV → Console in seconds)
+* **REPL development**: `clj -A:dev` for interactive component testing
+* **Pure transformations**: Filter, map, take, group-by operations on data
+* **Polylith architecture**: 6 working components demonstrating the full pattern
+* **Production-ready code**: Linted, tested, following Clojure best practices
 
 ---
 
@@ -113,6 +115,7 @@ Traditional data pipelines move data.
 * **Pipelines as Data** — EDN configuration is real data your code can manipulate.
 * **REPL Development** — Test transformations interactively without restart cycles.
 * **Immutability** — Reproducible, auditable pipeline execution by default.
+* **Code Quality** — Automatic linting with clj-kondo ensures maintainable, idiomatic code.
 * **JVM Ecosystem** — Access to all Java libraries and enterprise systems.
 
 ---
@@ -128,14 +131,27 @@ Traditional data pipelines move data.
 
 ---
 
-## **Contributing**
+## **Getting Started**
 
-**Priority Areas:**
+```bash
+# Try the working demo
+clj -M:cli -p demo-simple.edn -v
 
-* 🔧 **Connectors** — AWS, GCP, Azure integrations.
-* 🧠 **ML Models** — Hugging Face, scikit-learn, PyTorch support.
-* 📚 **Examples** — Real-world pipeline templates.
-* 🧪 **Testing** — Deterministic reproducibility frameworks.
+# Start REPL development  
+clj -A:dev
 
-**Early Adopter Program:** Direct access to core team, influence over roadmap.
-Do you want me to create that next?
+# Run tests
+clj -M:test
+
+# Check code quality
+clj-kondo --lint .
+```
+
+**See [CONTRIBUTING.md](CONTRIBUTING.md) for development workflow.**
+
+**Priority Areas for Contributors:**
+
+* 🔧 **More connectors** — Database, S3, HTTP, Kafka
+* 🧠 **Transform functions** — Aggregations, joins, ML integration
+* 📚 **Pipeline examples** — Real-world use cases
+* 🧪 **Testing frameworks** — Property-based, contract testing

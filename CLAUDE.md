@@ -22,7 +22,7 @@
 2. **`README.md`** — mission, goals, quickstart.
 3. **This `CLAUDE.md`** — coding rules & patterns.
 4. **`components/*/README.md`** — target brick details.
-5. **`projects/development/dev/user.clj`** — REPL helpers.
+5. **`projects/development/src/dev/user.clj`** — REPL helpers.
 
 **If information is missing, ask**:
 
@@ -37,8 +37,18 @@
 ### Workspace (Polylith Bricks)
 
 * **Components** = reusable libraries with public APIs in `interface` namespaces.
-* **Bases** = runnable entry points (`cli`, `worker`, `api`).
+  - `connector-protocol` — shared Connector protocol and utilities
+  - `pipeline-model` — parse and validate EDN pipeline definitions  
+  - `pipeline-transform` — pure transformation functions (filter, map, take, group-by)
+  - `csv-connector` — CSV file reader connector
+  - `console-connector` — console output connector
+  - `executor` — pipeline execution orchestrator
+* **Bases** = runnable entry points.
+  - `cli` — command line interface (implemented)
+  - `worker` — background pipeline execution (planned)
+  - `api` — HTTP API server (planned)
 * **Projects** = build configs bundling bases + components for an environment.
+  - `development` — development REPL and testing environment
 
 ### Core Process
 
@@ -59,10 +69,10 @@ For each PR, confirm:
 
 **Code Quality**
 
-* Compiles and passes `clj -X:test`.
+* Compiles and passes `clj -M:test -e "(clojure.test/run-all-tests)"`.
 * No side effects in lazy sequences — see `ARCHITECTURE.md` (*Non-goals*).
 * No premature realization of sequences — preserves streaming safety.
-* Pure functions are truly pure — matches *pipeline.transform* guarantees.
+* Pure functions are truly pure — matches *pipeline-transform* guarantees.
 
 **Docs**
 
@@ -72,9 +82,9 @@ For each PR, confirm:
 
 **Testing**
 
-* Property tests or contract tests for protocols — align with `testkit` design in `ARCHITECTURE.md`.
-* Unit tests for pure fns.
-* Integration tests per base (CLI, worker, API).
+* Protocol contract tests — all connectors must pass shared protocol tests.
+* Unit tests for pure fns (transforms, model parsing).
+* Integration tests per base (CLI implemented, worker/API planned).
 
 **Architecture Compliance**
 
@@ -85,8 +95,8 @@ For each PR, confirm:
 
 **Ops**
 
-* Logs/metrics/events via `components/observability`.
-* No `println`.
+* Logs/metrics/events via `components/observability` (planned).
+* No `println` in production code (console-connector excepted for output).
 * Secrets handled via config indirection.
 * Least-privilege credentials.
 
@@ -102,11 +112,11 @@ For each PR, confirm:
 2. **Start REPL in dev project:**
 
    ```bash
-   clj -A:dev
+   cd projects/development && clj -A:dev
    ```
-3. Use helpers from `dev/user.clj` (e.g., `(reload-pipeline ...)`).
+3. Use helpers from `src/dev/user.clj` (e.g., `(refresh)`, `(refresh-all)`).
 4. Make changes **only** inside a component unless wiring a base.
-5. Run tests: `clj -X:test`.
+5. Run tests: `clj -M:test -e "(clojure.test/run-all-tests)"`.
 6. Commit:
 
    ```
@@ -151,24 +161,49 @@ For each PR, confirm:
 
 **Connector**
 
+Defined in `components/connector-protocol/`:
+
 ```clojure
-(defprotocol Connector
-  (pull [this config options])
-  (push [this config data options])
-  (validate [this config]))
+(require '[ocht.connector :as conn])
+
+;; Protocol methods available:
+(conn/pull connector config options)
+(conn/push connector config data options)
+(conn/validate connector config)
+
+;; Utility functions:
+(conn/connector? obj)
+(conn/validate-connector-result result operation)
 ```
 
 * `pull` — bounded/streamable; no hidden effects.
 * `push` — idempotent or documented otherwise.
 * `validate` — cheap, side-effect free.
+* All connectors implement `conn/Connector` protocol.
 
 **Transform**
 
-* Pure, total within validated model ranges; prefer transducers.
+Available in `components/pipeline-transform/`:
+
+```clojure
+(require '[ocht.pipeline.transform :as transform])
+
+;; Available transforms:
+:filter  ;; {:transform-fn :filter :args {:predicate #(...)}}
+:map     ;; {:transform-fn :map :args {:f #(...)}}
+:take    ;; {:transform-fn :take :args {:n 10}}
+:group-by ;; {:transform-fn :group-by :args {:key-fn :field}}
+
+;; Functions:
+(transform/apply-transforms data transform-steps)
+(transform/create-transducer transform-steps)
+```
 
 **Executor**
 
-* Accepts compiled pipeline + opts; returns `{:result ...}` or `{:error ...}`.
+Available in `components/executor/`:
+* Accepts compiled pipeline + opts; returns `{:success true :result ...}` or `{:success false :error ...}`.
+* Orchestrates Pull → Transform → Push flow with error handling.
 
 ---
 
@@ -177,8 +212,9 @@ For each PR, confirm:
 (See `ARCHITECTURE.md` — *Testing Strategy*.)
 
 * **Unit tests** — pure fns, edge cases, property tests.
-* **Contract tests** — connectors pass shared suite from `testkit`.
-* **Integration tests** — per base (CLI, worker, API).
+* **Protocol tests** — all connectors must implement and pass `conn/Connector` protocol tests.
+* **Integration tests** — per base (CLI complete, worker/API planned).
+* **End-to-end tests** — full pipeline execution via CLI.
 * Fail if effects inside lazy transforms.
 
 ---
@@ -220,12 +256,36 @@ For each PR, confirm:
 
 **A) Add Stateless Transform**
 
-1. Create pure fn + transducer variant in `components/pipeline/transform/...`.
-2. Register in `registry.transform`.
-3. Add property tests + update `README.md`.
+1. Create pure fn + transducer variant in `components/pipeline-transform/src/ocht/pipeline/transform/core.clj`.
+2. Register in `transform-registry` map.
+3. Add unit tests + update `README.md`.
+4. Test integration via executor component.
 
 **B) Add Connector**
 
-1. Implement Connector protocol in `components/connectors/...`.
-2. Ensure idempotent push semantics.
-3. Pass connector contract tests from `testkit`.
+1. Create new component in `components/<name>-connector/`.
+2. Implement `ocht.connector/Connector` protocol in core.clj.
+3. Provide interface namespace for clean API.
+4. Pass connector protocol tests.
+5. Register in executor's `connector-registry`.
+6. Add to component README with examples.
+
+**C) Working with the CLI**
+
+Current demo command:
+```bash
+clj -M -m ocht.cli.core --pipeline demo-simple.edn --verbose
+```
+
+**D) Available Components & Status**
+
+* ✅ `connector-protocol` — shared protocol (complete)
+* ✅ `pipeline-model` — EDN parsing/validation (complete)  
+* ✅ `pipeline-transform` — basic transforms (complete)
+* ✅ `csv-connector` — CSV file reading (complete)
+* ✅ `console-connector` — console output (complete)
+* ✅ `executor` — pipeline orchestration (complete)
+* ✅ `cli` base — command line interface (complete)
+* 🔄 `worker` base — background execution (planned)
+* 🔄 `api` base — HTTP REST API (planned)
+* 🔄 `observability` component — logging/metrics (planned)

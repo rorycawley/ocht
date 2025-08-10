@@ -16,9 +16,11 @@
 (defn read-pipeline-file
   "Read and parse pipeline EDN file."
   [file-path]
+  {:pre [(string? file-path)]}
   (try
-    (with-open [r (java.io.PushbackReader. (io/reader file-path))]
-      (edn/read r))
+    (with-open [reader (io/reader file-path)
+                pushback-reader (java.io.PushbackReader. reader)]
+      (edn/read pushback-reader))
     (catch Exception e
       (throw (ex-info "Failed to read pipeline file" 
                      {:file file-path :error (.getMessage e)})))))
@@ -43,11 +45,10 @@
   "Print execution result."
   [result options]
   (if (:success result)
-    (do
-      (when (:verbose options)
-        (println "✓ Pipeline executed successfully")
-        (println "Pipeline ID:" (:pipeline-id result))
-        (println "Result count:" (count (:result result)))))
+    (when (:verbose options)
+      (println "✓ Pipeline executed successfully")
+      (println "Pipeline ID:" (:pipeline-id result))
+      (println "Result count:" (count (:result result))))
     (do
       (println "✗ Pipeline execution failed")
       (println "Error:" (get-in result [:error :message]))

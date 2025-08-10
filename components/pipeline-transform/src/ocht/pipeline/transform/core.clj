@@ -32,9 +32,10 @@
 
 (defn create-transform
   "Create a transform function from a step definition."
-  [{:keys [fn args] :as step}]
-  (if-let [transform-fn (get transform-registry fn)]
-    (transform-fn args)
+  [{:keys [transform-fn args] :as step}]
+  {:pre [(map? step) (keyword? transform-fn)]}
+  (if-let [transform-factory (get transform-registry transform-fn)]
+    (transform-factory (or args {}))
     (throw (ex-info "Unknown transform function" {:step step :available (keys transform-registry)}))))
 
 (defn create-transducer
@@ -49,6 +50,7 @@
 (defn apply-transforms
   "Apply transform steps to data."
   [data transform-steps]
+  {:pre [(seqable? data) (sequential? transform-steps)]}
   (if (empty? transform-steps)
     data
     (let [xform (create-transducer transform-steps)]

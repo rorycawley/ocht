@@ -28,11 +28,14 @@ This guide explains how to get started as a contributor and where to find **the 
 
 ```bash
 # Clone repo
-git clone https://github.com/yourorg/ocht
+git clone <your-repo-url>
 cd ocht
 
-# Install deps
+# Verify Polylith workspace
 clj -Tpoly info
+
+# Try the demo
+clj -M:cli -p demo-simple.edn -v
 
 # Start dev REPL
 clj -A:dev
@@ -46,9 +49,9 @@ See **CLAUDE.md → 4) First PR Quickstart** for the full REPL workflow and comm
 
 1. **Pick a brick** — See *Component Catalogue* in **ARCHITECTURE.md**.
 2. **Understand its role** — Cross-check with its `components/*/README.md`.
-3. **Write tests first** — Contract tests for connectors, property/unit for core.
+3. **Write tests first** — Protocol tests for connectors, unit tests for core functions.
 4. **Code to CLAUDE.md rules** — Respect “effects at edges” and “pure core” guidelines.
-5. **Run all tests** — `clj -X:test` or `kaocha`.
+5. **Run all tests** — `clj -X:test` (uses Kaocha test runner).
 6. **Open a PR** — Include intent, scope, risks, and test evidence.
 
 ---
@@ -72,9 +75,9 @@ These are the top issues caught in PR review — read and avoid them from the st
    * Side effects in `map`, `filter`, or other lazy ops can trigger at unpredictable times.
    * Realize sequences *inside* the scope that owns any resources.
 
-2. **Skipping connector contract tests**
+2. **Skipping connector protocol tests**
 
-   * Every new connector must pass `testkit` shared contract tests — not just unit tests.
+   * Every new connector must implement the `ocht.connector.protocol/Connector` protocol correctly.
 
 3. **Putting IO in the core**
 
@@ -98,12 +101,13 @@ These are the top issues caught in PR review — read and avoid them from the st
 
 6. **Logging sensitive data**
 
-   * Use `observability` component for logs/metrics and redact fields at edges.
-   * No direct `println`.
+   * Avoid direct `println` except in CLI base for user feedback.
+   * Structure error maps instead of logging exceptions directly.
 
 7. **Forgetting to run all tests before PR**
 
-   * `clj -X:test` must be green — contract, unit, property, and integration tests.
+   * `clj -X:test` must be green — protocol, unit, and integration tests.
+   * Test the demo pipeline: `clj -M:cli -p demo-simple.edn -v`
 
 ---
 

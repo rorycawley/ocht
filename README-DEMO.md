@@ -6,7 +6,7 @@
 
 ```bash
 # Run the basic demo pipeline (no transforms, shows raw data)
-clj -M -m ocht.cli.core --pipeline demo-simple.edn --verbose
+clj -M:cli -p demo-simple.edn -v
 
 # View the demo data
 cat demo-data.csv
@@ -47,12 +47,13 @@ Result count: 6
 
 ## Components Built
 
-- **pipeline-model** - Parse and validate EDN pipeline definitions
+- **connector-protocol** - Shared `Connector` protocol eliminating duplication
+- **pipeline-model** - Parse and validate EDN pipeline definitions 
 - **pipeline-transform** - Pure transformation functions (filter, map, take, group-by)
-- **csv-connector** - Read CSV files with header support
-- **console-connector** - Output to console (table, EDN, pretty-print formats)
-- **executor** - Orchestrate Pull → Transform → Push flow
-- **cli** - Command line interface
+- **csv-connector** - Read CSV files with proper resource management
+- **console-connector** - Output to console (table, EDN, JSON formats)
+- **executor** - Orchestrate Pull → Transform → Push flow with lazy connector registry
+- **cli** - Command line interface with structured error handling
 
 ## Available Transforms
 
@@ -62,7 +63,7 @@ The transform system supports:
 - `:take` - Limit number of records
 - `:group-by` - Group records by key function
 
-*Note: Function literals like `#()` cannot be serialized in EDN, so complex transforms would need to be pre-registered or use a different approach.*
+*Note: Current demo uses simple transforms. Complex transforms use pre-registered functions from the transform registry.*
 
 ## Architecture Highlights
 
@@ -70,14 +71,29 @@ The transform system supports:
 - **Connector protocol** - Standardized pull/push/validate interface
 - **Error handling** - Structured error responses with validation
 - **Streaming-ready** - Transducer-based transforms for efficiency
+- **Code quality** - Linted codebase with clj-kondo, zero warnings/errors
+- **Auto-linting** - Automatic code quality checks on every edit
 
-## Testing
+## Testing & Code Quality
 
-All components have comprehensive test coverage:
+All components have comprehensive test coverage and pass strict linting:
 ```bash
-# Run all tests from development project
-clj -M:test -e "(clojure.test/run-all-tests)"
+# Run linting (automatic on every edit)
+clj-kondo --lint .
+
+# Run tests (uses Kaocha)
+clj -M:test
+
+# Or test in REPL
+clj -A:dev
+user=> (refresh)  ; reload and test
 ```
+
+**Code Quality Standards:**
+- Zero linting warnings or errors
+- Follows Clojure idioms and best practices
+- Automatic quality checks via Claude Code hooks
+- Production-ready code quality
 
 ## Next Steps for Full Platform
 

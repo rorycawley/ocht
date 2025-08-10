@@ -1,7 +1,8 @@
 (ns ocht.connectors.console.core-test
   (:require [clojure.test :refer [deftest is testing]]
-            [ocht.connectors.console.core :as console])
-  (:import [java.io StringWriter]))
+            [ocht.connectors.console.core :as console]
+            [ocht.connector :as conn])
+)
 
 (def sample-data
   [{:id 1 :name "Alice" :amount 100}
@@ -12,16 +13,16 @@
     (let [connector (console/->ConsoleConnector)
           config {:format :edn :pretty? false}
           output (with-out-str
-                   (console/push connector config sample-data {}))]
-      (is (not (empty? output)))
+                   (conn/push connector config sample-data {}))]
+      (is (seq output))
       (is (re-find #"\{:id" output))))
 
   (testing "outputs table format"
     (let [connector (console/->ConsoleConnector)
           config {:format :table}
           output (with-out-str
-                   (console/push connector config sample-data {}))]
-      (is (not (empty? output)))
+                   (conn/push connector config sample-data {}))]
+      (is (seq output))
       (is (re-find #"id\tname\tamount" output))
       (is (re-find #"1\tAlice\t100" output))))
 
@@ -29,8 +30,8 @@
     (let [connector (console/->ConsoleConnector)
           config {}
           output (with-out-str
-                   (console/push connector config sample-data {}))]
-      (is (not (empty? output)))
+                   (conn/push connector config sample-data {}))]
+      (is (seq output))
       ;; Pretty printed should have newlines
       (is (re-find #"\n" output)))))
 
@@ -38,16 +39,16 @@
   (testing "validates format"
     (let [connector (console/->ConsoleConnector)]
       (testing "valid formats"
-        (is (:valid? (console/validate connector {:format :edn})))
-        (is (:valid? (console/validate connector {:format :table})))
-        (is (:valid? (console/validate connector {}))))
+        (is (:valid? (conn/validate connector {:format :edn})))
+        (is (:valid? (conn/validate connector {:format :table})))
+        (is (:valid? (conn/validate connector {}))))
       
       (testing "invalid format"
-        (let [result (console/validate connector {:format :xml})]
+        (let [result (conn/validate connector {:format :xml})]
           (is (not (:valid? result)))
           (is (some #(= :invalid-format (:error %)) (:errors result)))))))
 
   (testing "pull operation not supported"
     (let [connector (console/->ConsoleConnector)]
       (is (thrown? UnsupportedOperationException
-                   (console/pull connector {} {}))))))
+                   (conn/pull connector {} {}))))))

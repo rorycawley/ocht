@@ -1,3 +1,6 @@
+;; NOTE: This is an EXAMPLE only - cannot be executed because EDN doesn't support #() function literals
+;; For a working demo, see demo-simple.edn
+;; Future versions will support pre-registered transform functions
 {:id "sales-analysis-demo"
  :pull {:connector :csv 
         :config {:file "demo-data.csv"}}

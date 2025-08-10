@@ -4,6 +4,8 @@
         org.clojure/tools.cli {:mvn/version "1.0.219"}}
 
  :paths ["src"
+         "../../components/connector-protocol/src"
+         "../../components/connector-protocol/interface"
          "../../components/pipeline-model/src"
          "../../components/pipeline-model/interface"
          "../../components/pipeline-transform/src"
@@ -18,7 +20,8 @@
 
  :aliases
  {:test
-  {:extra-paths ["../../components/pipeline-model/test"
+  {:extra-paths ["../../components/connector-protocol/test"
+                 "../../components/pipeline-model/test"
                  "../../components/pipeline-transform/test"
                  "../../components/csv-connector/test"
                  "../../components/console-connector/test"

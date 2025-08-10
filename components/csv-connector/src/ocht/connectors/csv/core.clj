@@ -1,17 +1,12 @@
 (ns ocht.connectors.csv.core
   "Core CSV connector implementation."
   (:require [clojure.data.csv :as csv]
-            [clojure.java.io :as io]))
-
-(defprotocol Connector
-  "Basic connector protocol for Pull → Transform → Push pattern."
-  (pull [this config options] "Pull data from source")
-  (push [this config data options] "Push data to destination")
-  (validate [this config] "Validate configuration"))
+            [clojure.java.io :as io]
+            [ocht.connector :as conn]))
 
 (defrecord CsvConnector []
-  Connector
-  (pull [_ config options]
+  conn/Connector
+  (pull [_ config _]
     (let [{:keys [file headers?]} config
           headers? (if (nil? headers?) true headers?)]
       (with-open [reader (io/reader file)]
@@ -19,10 +14,10 @@
               [headers & rows] csv-data]
           (if headers?
             (map #(zipmap (map keyword headers) %) rows)
-            (map-indexed (fn [i row] (zipmap (map #(keyword (str "col" %)) (range (count row))) row)) csv-data))))))
+            (map-indexed (fn [_ row] (zipmap (map #(keyword (str "col" %)) (range (count row))) row)) csv-data))))))
   
-  (push [_ config data options]
-    ;; CSV connector is read-only for MVP
+  (push [_ _ _ _]
+    ;; CSV connector is read-only for MVP - no push operation
     (throw (UnsupportedOperationException. "CSV connector only supports pull operations")))
   
   (validate [_ config]

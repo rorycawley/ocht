@@ -1,21 +1,16 @@
 (ns ocht.connectors.console.core
   "Core console connector implementation."
   (:require [clojure.pprint :as pp]
-            [clojure.string :as str]))
-
-(defprotocol Connector
-  "Basic connector protocol for Pull → Transform → Push pattern."
-  (pull [this config options] "Pull data from source")
-  (push [this config data options] "Push data to destination")
-  (validate [this config] "Validate configuration"))
+            [clojure.string :as str]
+            [ocht.connector :as conn]))
 
 (defrecord ConsoleConnector []
-  Connector
-  (pull [_ config options]
+  conn/Connector
+  (pull [_ _ _]
     ;; Console connector doesn't support pull operations
     (throw (UnsupportedOperationException. "Console connector only supports push operations")))
   
-  (push [_ config data options]
+  (push [_ config data _]
     (let [{:keys [format pretty?]} config
           format (or format :edn)
           pretty? (if (nil? pretty?) true pretty?)]

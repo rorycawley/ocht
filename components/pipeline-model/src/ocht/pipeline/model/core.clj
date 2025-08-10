@@ -4,6 +4,7 @@
 (defn parse-step
   "Parse a pull or push step."
   [step]
+  {:pre [(map? step) (contains? step :connector)]}
   (let [{:keys [connector config]} step]
     {:connector (keyword connector)
      :config (or config {})}))
@@ -11,8 +12,9 @@
 (defn parse-transform-step
   "Parse a single transform step."
   [step]
+  {:pre [(map? step) (contains? step :fn)]}
   (let [{:keys [fn args]} step]
-    {:fn (keyword fn)
+    {:transform-fn (keyword fn)
      :args (or args {})}))
 
 (defn parse-pipeline
@@ -25,15 +27,17 @@
                {:fn :map :args {:f #(assoc % :category \"high-value\")}}]
    :push {:connector :console :config {}}}"
   [pipeline-edn]
+  {:pre [(map? pipeline-edn)]}
   (let [{:keys [id pull transform push]} pipeline-edn]
     {:id id
      :pull (parse-step pull)
-     :transform (mapv parse-transform-step transform)
+     :transform (mapv parse-transform-step (or transform []))
      :push (parse-step push)}))
 
 (defn validate-pipeline
   "Validate parsed pipeline model."
   [pipeline]
+  {:pre [(map? pipeline)]}
   (let [errors (cond-> []
                  (not (:id pipeline))
                  (conj {:error :missing-id :message "Pipeline must have an id"})
