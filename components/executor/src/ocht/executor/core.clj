@@ -83,4 +83,4 @@
        :error {:message (.getMessage e)
                :type (class e)
                :pipeline-id id
-               :data (ex-data e)}}))
+               :data (ex-data e)}})))

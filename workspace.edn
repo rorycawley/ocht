@@ -17,7 +17,11 @@
                                       "pipeline-transform"]}
             "ocht-cli" {:necessary ["config"
                                    "connector-protocol"
+                                   "console-connector" 
+                                   "csv-connector"
                                    "executor"
+                                   "pipeline-model"
+                                   "pipeline-transform"
                                    "validation"]}}
 
  :profiles {"dev" {:paths ["projects/development/src"]}}
