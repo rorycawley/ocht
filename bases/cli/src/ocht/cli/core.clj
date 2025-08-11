@@ -3,7 +3,7 @@
   (:require [clojure.tools.cli :as cli]
             [clojure.edn :as edn]
             [clojure.java.io :as io]
-            [ocht.pipeline.model :as model]
+            [ocht.pipeline-model.interface :as model]
             [ocht.executor :as executor])
   (:gen-class))
 

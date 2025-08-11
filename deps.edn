@@ -1,6 +1,6 @@
 {:aliases
  {:dev
-  {:extra-paths ["development/src"]
+  {:extra-paths ["projects/development/src"]
    :extra-deps  {org.clojure/clojure {:mvn/version "1.11.1"}
                  org.clojure/tools.namespace {:mvn/version "1.4.4"}}}
 
@@ -11,6 +11,7 @@
                  "components/csv-connector/test"
                  "components/console-connector/test"
                  "components/executor/test"
+                 "components/validation/test"
                  "components/connector-protocol/src"
                  "components/connector-protocol/interface"
                  "components/pipeline-model/src"
@@ -22,7 +23,9 @@
                  "components/console-connector/src"
                  "components/console-connector/interface"
                  "components/executor/src"
-                 "components/executor/interface"]
+                 "components/executor/interface"
+                 "components/validation/src"
+                 "components/validation/interface"]
    :main-opts   ["-m" "kaocha.runner"]
    :extra-deps  {lambdaisland/kaocha {:mvn/version "1.87.1366"}
                  org.clojure/data.csv {:mvn/version "1.1.0"}}}

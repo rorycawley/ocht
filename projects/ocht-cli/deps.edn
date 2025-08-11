@@ -1,0 +1,42 @@
+{:deps {;; Base (entry point)
+        ocht/cli                    {:local/root "../../bases/cli"}
+        
+        ;; Core components (business logic)
+        ocht/connector-protocol     {:local/root "../../components/connector-protocol"}
+        ocht/executor               {:local/root "../../components/executor"}
+        ocht/pipeline-model         {:local/root "../../components/pipeline-model"}
+        ocht/pipeline-transform     {:local/root "../../components/pipeline-transform"}
+        ocht/csv-connector          {:local/root "../../components/csv-connector"}
+        ocht/console-connector      {:local/root "../../components/console-connector"}
+        
+        ;; Utility components
+        ocht/config                 {:local/root "../../components/config"}
+        ocht/validation             {:local/root "../../components/validation"}
+        
+        ;; External libraries
+        org.clojure/clojure         {:mvn/version "1.11.1"}
+        org.clojure/data.csv        {:mvn/version "1.1.0"}
+        org.clojure/tools.cli       {:mvn/version "1.0.219"}}
+        
+ :aliases {:run {:main-opts ["-m" "ocht.cli.core"]}
+           
+           :build {:deps {io.github.clojure/tools.build {:git/tag "v0.9.6" :git/sha "8e78bcc"}}
+                   :ns-default build}
+           
+           :test {:extra-paths ["../../components/connector-protocol/test"
+                                "../../components/csv-connector/test"
+                                "../../components/console-connector/test"
+                                "../../components/pipeline-model/test"
+                                "../../components/pipeline-transform/test"
+                                "../../components/executor/test"
+                                "../../components/config/test"
+                                "../../components/validation/test"]
+                  :extra-deps {lambdaisland/kaocha {:mvn/version "1.87.1366"}}
+                  :main-opts ["-m" "kaocha.runner"]}
+           
+           :uberjar {:replace-deps {com.github.seancorfield/deps-new 
+                                   {:mvn/version "0.5.0"}}
+                     :exec-fn hf.depstar/uberjar
+                     :exec-args {:aot true
+                                :jar "target/ocht-cli.jar"
+                                :main-class "ocht.cli.core"}}}}

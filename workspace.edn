@@ -9,4 +9,17 @@
  :tag-patterns {"stable" "stable-*"
                 "release" "v[0-9]*"}
 
+ :projects {"development" {:necessary ["connector-protocol"
+                                      "console-connector" 
+                                      "csv-connector"
+                                      "executor"
+                                      "pipeline-model"
+                                      "pipeline-transform"]}
+            "ocht-cli" {:necessary ["config"
+                                   "connector-protocol"
+                                   "executor"
+                                   "validation"]}}
+
+ :profiles {"dev" {:paths ["projects/development/src"]}}
+
  :user-config-filename "~/.polylith/config.edn"}

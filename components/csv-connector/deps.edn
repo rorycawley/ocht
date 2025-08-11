@@ -1,0 +1,2 @@
+{:paths ["src" "interface"]
+ :deps  {org.clojure/data.csv {:mvn/version "1.1.0"}}}

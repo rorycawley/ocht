@@ -6,14 +6,14 @@
  :paths ["src"
          "../../components/connector-protocol/src"
          "../../components/connector-protocol/interface"
-         "../../components/pipeline-model/src"
-         "../../components/pipeline-model/interface"
-         "../../components/pipeline-transform/src"
-         "../../components/pipeline-transform/interface"
          "../../components/csv-connector/src"
          "../../components/csv-connector/interface"
          "../../components/console-connector/src"
          "../../components/console-connector/interface"
+         "../../components/pipeline-model/src"
+         "../../components/pipeline-model/interface"
+         "../../components/pipeline-transform/src"
+         "../../components/pipeline-transform/interface"
          "../../components/executor/src"
          "../../components/executor/interface"
          "../../bases/cli/src"]
@@ -21,10 +21,10 @@
  :aliases
  {:test
   {:extra-paths ["../../components/connector-protocol/test"
-                 "../../components/pipeline-model/test"
-                 "../../components/pipeline-transform/test"
                  "../../components/csv-connector/test"
                  "../../components/console-connector/test"
+                 "../../components/pipeline-model/test"
+                 "../../components/pipeline-transform/test"
                  "../../components/executor/test"]
    :extra-deps  {lambdaisland/kaocha {:mvn/version "1.87.1366"}}}
 
