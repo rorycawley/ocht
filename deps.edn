@@ -12,6 +12,7 @@
                  "components/console-connector/test"
                  "components/executor/test"
                  "components/validation/test"
+                 "components/config/test"
                  "components/connector-protocol/src"
                  "components/connector-protocol/interface"
                  "components/pipeline-model/src"
@@ -25,7 +26,9 @@
                  "components/executor/src"
                  "components/executor/interface"
                  "components/validation/src"
-                 "components/validation/interface"]
+                 "components/validation/interface"
+                 "components/config/src"
+                 "components/config/interface"]
    :main-opts   ["-m" "kaocha.runner"]
    :extra-deps  {lambdaisland/kaocha {:mvn/version "1.87.1366"}
                  org.clojure/data.csv {:mvn/version "1.1.0"}}}

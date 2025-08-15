@@ -1,7 +1,7 @@
 (ns ocht.executor.core-test
   (:require [clojure.test :refer [deftest is testing]]
             [ocht.executor.core :as executor]
-            [ocht.pipeline.model :as model]
+            [ocht.pipeline-model.interface :as model]
             [clojure.java.io :as io]))
 
 (def test-csv-file "/tmp/executor-test.csv")

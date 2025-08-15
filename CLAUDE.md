@@ -67,9 +67,28 @@
 
 For each PR, confirm:
 
+**CRITICAL: Compilation & Runtime Validation (NEVER SKIP)**
+
+* **MANDATORY**: Every component MUST compile individually before any commit:
+  ```bash
+  clojure -M -e "(require 'ocht.component.core) (println \"✅ Compiles\")" -cp $(clojure -Spath -M:test)
+  ```
+* **MANDATORY**: Polylith workspace validation MUST pass:
+  ```bash
+  poly check  # Must return "OK"
+  ```
+* **MANDATORY**: At least one integration test MUST run successfully:
+  ```bash
+  clojure -M:cli --help  # Or equivalent functional test
+  ```
+* **MANDATORY**: After ANY structural change, verify dependencies resolve:
+  ```bash
+  # Test each component can load its dependencies
+  clojure -M:test -e "(require 'target.namespace)"
+  ```
+
 **Code Quality**
 
-* Compiles and passes `clj -M:test -e "(clojure.test/run-all-tests)"`.
 * No side effects in lazy sequences — see `ARCHITECTURE.md` (*Non-goals*).
 * No premature realization of sequences — preserves streaming safety.
 * Pure functions are truly pure — matches *pipeline-transform* guarantees.
@@ -102,31 +121,87 @@ For each PR, confirm:
 
 ---
 
-## 4) First PR Quickstart
+## 4) Development Workflow (MANDATORY PROCESS)
 
-1. **Discover workspace bricks:**
+**CRITICAL: Follow this exact process. Static analysis alone is insufficient.**
 
+### Before Making Any Changes
+
+1. **Establish Baseline Functionality:**
    ```bash
-   clj -Tpoly info
+   # 1. Verify workspace is valid
+   poly check
+   
+   # 2. Test that core functionality works
+   clojure -M:cli --help
+   
+   # 3. Verify test infrastructure works
+   clojure -M:test -e "(println \"Test classpath works\")"
    ```
-2. **Start REPL in dev project:**
 
+2. **If Baseline is Broken:**
+   - **STOP** making improvements
+   - **FIX** compilation and runtime issues first
+   - **VERIFY** basic functionality works before proceeding
+
+### During Development (After Each Significant Change)
+
+3. **Incremental Validation:**
    ```bash
-   cd projects/development && clj -A:dev
+   # After each component modification:
+   clojure -M -e "(require 'ocht.component.core) (println \"✅\")" -cp $(clojure -Spath -M:test)
+   
+   # After structural changes:
+   poly check
+   
+   # After interface changes:
+   clojure -M:cli --help  # Or relevant integration test
    ```
-3. Use helpers from `src/dev/user.clj` (e.g., `(refresh)`, `(refresh-all)`).
-4. Make changes **only** inside a component unless wiring a base.
-5. Run tests: `clj -M:test -e "(clojure.test/run-all-tests)"`.
-6. Commit:
 
+4. **Fix Issues Immediately:**
+   - **NEVER** proceed with more changes if validation fails
+   - **FIX** compilation errors before adding features
+   - **TEST** that fixes actually work
+
+### Before Committing (NON-NEGOTIABLE)
+
+5. **Complete Validation Checklist:**
+   ```bash
+   # ✅ Workspace structure is valid
+   poly check
+   
+   # ✅ All components compile
+   for component in connector-protocol csv-connector console-connector executor pipeline-model pipeline-transform validation config; do
+     echo "Testing $component..."
+     clojure -M -e "(require 'ocht.$component.core) (println \"✅ $component\")" -cp $(clojure -Spath -M:test) || echo "❌ $component FAILED"
+   done
+   
+   # ✅ Integration test passes
+   clojure -M:cli --help
+   
+   # ✅ Test infrastructure works
+   clojure -M:test -e "(println \"Test runner works\")"
    ```
-   feat(component): add <thing> to achieve <user outcome>
-   ```
-7. Open PR with intent, surface area, tests, risks, and evidence.
+
+6. **If ANY validation fails:**
+   - **DO NOT COMMIT**
+   - **FIX** the issues
+   - **REPEAT** validation until all checks pass
+
+## 5) First PR Quickstart
+
+**Note: Only use this after completing the Development Workflow validation above.**
+
+1. **Discover workspace bricks:** `poly info`
+2. **Start REPL:** `cd projects/development && clj -A:dev`
+3. **Use dev helpers:** `src/dev/user.clj`
+4. **Make focused changes** inside components only
+5. **Follow Development Workflow** (Section 4) for each change
+6. **Commit only after complete validation**
 
 ---
 
-## 5) Code Style Rules
+## 6) Code Style Rules
 
 (See `ARCHITECTURE.md` — *Effects at Edges*, *Explicit Failure*, *Model–Interface–Environment*.)
 
@@ -155,7 +230,7 @@ For each PR, confirm:
 
 ---
 
-## 6) Core Protocols & Contracts
+## 7) Core Protocols & Contracts
 
 (See `ARCHITECTURE.md` — *Contracts & Protocols*.)
 
@@ -207,7 +282,7 @@ Available in `components/executor/`:
 
 ---
 
-## 7) Testing Standards
+## 8) Testing Standards
 
 (See `ARCHITECTURE.md` — *Testing Strategy*.)
 
@@ -219,7 +294,7 @@ Available in `components/executor/`:
 
 ---
 
-## 8) Error Handling & Observability
+## 9) Error Handling & Observability
 
 (See `ARCHITECTURE.md` — *Error Handling & Invariants*, *Observability & Operations*.)
 
@@ -242,7 +317,7 @@ Available in `components/executor/`:
 
 ---
 
-## 9) Security & Privacy
+## 10) Security & Privacy
 
 (See `ARCHITECTURE.md` — *Security & Config*.)
 

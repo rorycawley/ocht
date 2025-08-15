@@ -13,32 +13,34 @@
   (push [_ config data _]
     (let [{:keys [format pretty?]} config
           format (or format :edn)
-          pretty? (if (nil? pretty?) true pretty?)]
+          pretty? (if (nil? pretty?) true pretty?)
+          ;; Realize data once to avoid lazy sequence issues
+          realized-data (vec data)]
       (case format
         :edn (if pretty?
-               (pp/pprint data)
-               (prn data))
+               (pp/pprint realized-data)
+               (prn realized-data))
         :json (throw (UnsupportedOperationException. "JSON format not yet supported"))
-        :table (when (seq data)
-                 (let [sample (first data)]
+        :table (when (seq realized-data)
+                 (let [sample (first realized-data)]
                    (when (map? sample)
                      (let [columns (keys sample)
                            {:keys [max-rows]} config
                            max-rows (or max-rows 1000)
-                           limited-data (take max-rows data)]
+                           limited-data (take max-rows realized-data)
+                           actual-count (count limited-data)]
                        ;; Print header
                        (println (str/join "\t" (map name columns)))
                        ;; Print rows
                        (doseq [row limited-data]
                          (println (str/join "\t" (map #(str (get row %)) columns))))
-                       ;; Show truncation warning
-                       (let [total-count (count data)]
-                         (when (> total-count max-rows)
-                           (println (str "... showing " max-rows " of " total-count " rows"))))))))
+                       ;; Show truncation warning if we hit the limit
+                       (when (= actual-count max-rows)
+                         (println (str "... showing first " max-rows " rows (may be more)")))))))
         ;; Default case
         (if pretty?
-          (pp/pprint data)
-          (prn data)))))
+          (pp/pprint realized-data)
+          (prn realized-data)))))
   
   (validate [_ config]
     (let [{:keys [format]} config

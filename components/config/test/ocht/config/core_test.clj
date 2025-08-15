@@ -17,5 +17,10 @@
 
 (deftest validate-config-test
   (testing "validates configuration schema"
-    (is (config/validate-config! {:test-key :keyword}))
-    (is (not (config/validate-config! {:test-key "invalid-type"})))))
+    ;; Load config first
+    (config/load-config!)
+    ;; Test validation of existing sections
+    (is (config/validate-config! {:ocht.connector.csv {:max-file-size-mb :pos-int}}))
+    ;; Test validation fails for missing sections
+    (is (thrown-with-msg? Exception #"Missing configuration section"
+                          (config/validate-config! {:nonexistent.section {:key :type}})))))

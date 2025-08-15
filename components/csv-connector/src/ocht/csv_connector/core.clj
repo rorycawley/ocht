@@ -18,13 +18,17 @@
                 [headers & rows] csv-data]
             (if headers?
               (when headers
+                ;; Realize the lazy sequence inside with-open
                 (->> rows
                      (map #(zipmap (map keyword headers) %))
-                     (remove empty?)))
+                     (remove empty?)
+                     (doall)))
+              ;; Realize the lazy sequence inside with-open  
               (->> csv-data
                    (map (fn [row] 
                           (zipmap (map #(keyword (str "col" %)) (range (count row))) row)))
-                   (remove empty?)))))
+                   (remove empty?)
+                   (doall)))))
         (catch java.io.FileNotFoundException e
           (throw (ex-info "CSV file not found" 
                          {:file file :error (.getMessage e)})))
